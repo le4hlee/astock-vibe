@@ -1,65 +1,83 @@
-import Image from "next/image";
+import Link from "next/link";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 
-export default function Home() {
+export default async function HomePage() {
+  const session = await auth();
+
+  if (session?.user) {
+    redirect("/dashboard");
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="mx-auto flex min-h-screen max-w-5xl flex-col px-6 py-16">
+      <header className="mb-16 flex items-center justify-between">
+        <div className="text-xl font-semibold tracking-tight">AStocks</div>
+        <div className="flex gap-3">
+          <Link
+            href="/login"
+            className="rounded-lg border border-card-border px-4 py-2 text-sm text-muted transition hover:border-accent hover:text-foreground"
+          >
+            Log in
+          </Link>
+          <Link
+            href="/register"
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500"
+          >
+            Sign up
+          </Link>
+        </div>
+      </header>
+
+      <section className="flex flex-1 flex-col justify-center gap-8">
+        <div className="max-w-2xl">
+          <p className="mb-4 text-sm uppercase tracking-[0.2em] text-accent">
+            Portfolio tracker
+          </p>
+          <h1 className="text-5xl font-semibold leading-tight tracking-tight">
+            Track US & Korean stocks in one place
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="mt-6 text-lg leading-relaxed text-muted">
+            Save your holdings, average cost, and share count. See total profit
+            percentage updated with live market prices whenever you open your
+            dashboard.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          {[
+            {
+              title: "Dual currency",
+              body: "Holdings in USD and KRW with combined portfolio totals.",
+            },
+            {
+              title: "Live quotes",
+              body: "Prices refresh on login and every minute while you browse.",
+            },
+            {
+              title: "Private account",
+              body: "Your portfolio is saved securely to your own account.",
+            },
+          ].map((item) => (
+            <div
+              key={item.title}
+              className="rounded-2xl border border-card-border bg-card/70 p-5 backdrop-blur"
+            >
+              <h2 className="font-medium">{item.title}</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted">
+                {item.body}
+              </p>
+            </div>
+          ))}
         </div>
-      </main>
-    </div>
+
+        <Link
+          href="/register"
+          className="inline-flex w-fit rounded-xl bg-accent px-6 py-3 font-medium text-white transition hover:bg-blue-500"
+        >
+          Get started
+        </Link>
+      </section>
+    </main>
   );
 }

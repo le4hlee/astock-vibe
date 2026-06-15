@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AStocks
 
-## Getting Started
+A personal stock portfolio tracker for **US and Korean** holdings. Save your tickers, share count, and average cost — then see total profit % updated with live market prices whenever you open the dashboard (and every 60 seconds while you stay on the page).
 
-First, run the development server:
+Built with Next.js, deployed on Vercel.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Features
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Email/password login with secure sessions
+- Track holdings in **USD** (US stocks) and **KRW** (Korean stocks)
+- Live quotes via Yahoo Finance (US tickers like `AAPL`, Korean like `005930` or `005930.KS`)
+- Combined portfolio profit % with FX conversion (USD/KRW)
+- Per-market breakdown for US and Korea
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Local setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. **Install dependencies**
 
-## Learn More
+   ```bash
+   npm install
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+2. **Create a Postgres database**
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   Use [Neon](https://neon.tech), [Vercel Postgres](https://vercel.com/docs/storage/vercel-postgres), or any PostgreSQL provider.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3. **Configure environment variables**
 
-## Deploy on Vercel
+   Copy `.env.example` to `.env` and fill in the values:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   ```bash
+   cp .env.example .env
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+4. **Run migrations**
+
+   ```bash
+   npx prisma migrate dev --name init
+   ```
+
+5. **Start the dev server**
+
+   ```bash
+   npm run dev
+   ```
+
+   Open [http://localhost:3000](http://localhost:3000).
+
+## Deploy to Vercel
+
+1. Push this folder to GitHub.
+2. Import the project in [Vercel](https://vercel.com/new).
+3. Add environment variables from `.env.example`:
+   - `DATABASE_URL` — your production Postgres connection string
+   - `AUTH_SECRET` — generate with `openssl rand -base64 32`
+   - `AUTH_URL` — your production URL (e.g. `https://your-app.vercel.app`)
+4. Set the **Build Command** to use Prisma (already in `package.json`):
+
+   ```bash
+   prisma generate && next build
+   ```
+
+5. After first deploy, run migrations against production:
+
+   ```bash
+   npx prisma migrate deploy
+   ```
+
+## Korean stock tickers
+
+- **KOSPI**: use 6-digit code, e.g. `005930` (Samsung) — app auto-appends `.KS`
+- **KOSDAQ**: include suffix, e.g. `035720.KQ` (Kakao)
+
+## Tech stack
+
+- Next.js 16 (App Router)
+- NextAuth (credentials)
+- Prisma + PostgreSQL
+- Tailwind CSS
+- Yahoo Finance (unofficial chart API)
