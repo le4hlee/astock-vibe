@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { normalizeHoldingData, validateHoldingInput } from "@/lib/holdings";
 import { prisma } from "@/lib/prisma";
 
 type RouteContext = {
@@ -27,40 +28,40 @@ export async function PATCH(request: Request, context: RouteContext) {
       ticker?: string;
       name?: string;
       market?: "US" | "KR";
-      currency?: "USD" | "KRW";
       shares?: number;
       avgPrice?: number;
+      boughtInKrw?: boolean;
     };
 
-    const market = body.market ?? existing.market;
-    const currency = body.currency ?? existing.currency;
+    const merged = {
+      ticker: body.ticker ?? existing.ticker,
+      name: body.name !== undefined ? body.name : existing.name ?? undefined,
+      market: body.market ?? existing.market,
+      shares: body.shares ?? existing.shares,
+      avgPrice: body.avgPrice ?? existing.avgPrice,
+      boughtInKrw:
+        body.boughtInKrw !== undefined
+          ? body.boughtInKrw
+          : existing.boughtInKrw,
+    };
 
-    if ((market === "US" && currency !== "USD") || (market === "KR" && currency !== "KRW")) {
-      return NextResponse.json(
-        { error: "US stocks must use USD and Korean stocks must use KRW." },
-        { status: 400 },
-      );
+    const validationError = validateHoldingInput(merged);
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
-    const shares = body.shares ?? existing.shares;
-    const avgPrice = body.avgPrice ?? existing.avgPrice;
-
-    if (shares <= 0 || avgPrice <= 0) {
-      return NextResponse.json(
-        { error: "Shares and average price must be greater than zero." },
-        { status: 400 },
-      );
-    }
+    const data = normalizeHoldingData(merged);
 
     const holding = await prisma.holding.update({
       where: { id },
       data: {
-        ticker: body.ticker?.trim().toUpperCase() ?? existing.ticker,
-        name: body.name !== undefined ? body.name.trim() || null : existing.name,
-        market,
-        currency,
-        shares,
-        avgPrice,
+        ticker: data.ticker,
+        name: data.name,
+        market: data.market,
+        currency: data.currency,
+        boughtInKrw: data.boughtInKrw,
+        shares: data.shares,
+        avgPrice: data.avgPrice,
       },
     });
 

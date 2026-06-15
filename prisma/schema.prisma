@@ -28,17 +28,18 @@ model User {
 }
 
 model Holding {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  ticker    String
-  name      String?
-  market    Market
-  currency  Currency
-  shares    Float
-  avgPrice  Float
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ticker      String
+  name        String?
+  market      Market
+  currency    Currency
+  boughtInKrw Boolean  @default(false)
+  shares      Float
+  avgPrice    Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([userId])
 }

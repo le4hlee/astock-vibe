@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { normalizeHoldingData, validateHoldingInput } from "@/lib/holdings";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
@@ -27,47 +28,22 @@ export async function POST(request: Request) {
       ticker?: string;
       name?: string;
       market?: "US" | "KR";
-      currency?: "USD" | "KRW";
       shares?: number;
       avgPrice?: number;
+      boughtInKrw?: boolean;
     };
 
-    const ticker = body.ticker?.trim().toUpperCase();
-    const market = body.market;
-    const currency = body.currency;
-    const shares = body.shares;
-    const avgPrice = body.avgPrice;
-
-    if (!ticker || !market || !currency || !shares || !avgPrice) {
-      return NextResponse.json(
-        { error: "Ticker, market, currency, shares, and average price are required." },
-        { status: 400 },
-      );
+    const validationError = validateHoldingInput(body);
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
-    if (shares <= 0 || avgPrice <= 0) {
-      return NextResponse.json(
-        { error: "Shares and average price must be greater than zero." },
-        { status: 400 },
-      );
-    }
-
-    if ((market === "US" && currency !== "USD") || (market === "KR" && currency !== "KRW")) {
-      return NextResponse.json(
-        { error: "US stocks must use USD and Korean stocks must use KRW." },
-        { status: 400 },
-      );
-    }
+    const data = normalizeHoldingData(body);
 
     const holding = await prisma.holding.create({
       data: {
         userId: session.user.id,
-        ticker,
-        name: body.name?.trim() || null,
-        market,
-        currency,
-        shares,
-        avgPrice,
+        ...data,
       },
     });
 

@@ -8,6 +8,24 @@ import { Field, inputClass } from "@/components/auth-shell";
 
 type DisplayCurrency = "USD" | "KRW";
 
+type HoldingFormState = {
+  ticker: string;
+  name: string;
+  market: "US" | "KR";
+  shares: string;
+  avgPrice: string;
+  boughtInKrw: boolean;
+};
+
+const emptyForm: HoldingFormState = {
+  ticker: "",
+  name: "",
+  market: "US",
+  shares: "",
+  avgPrice: "",
+  boughtInKrw: false,
+};
+
 export function DashboardClient({
   userName,
   userEmail,
@@ -22,16 +40,13 @@ export function DashboardClient({
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<HoldingFormState>(emptyForm);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const [ticker, setTicker] = useState("");
-  const [name, setName] = useState("");
-  const [market, setMarket] = useState<"US" | "KR">("US");
-  const [shares, setShares] = useState("");
-  const [avgPrice, setAvgPrice] = useState("");
-
-  const currency = market === "US" ? "USD" : "KRW";
+  const currency =
+    form.market === "KR" ? "KRW" : form.boughtInKrw ? "KRW" : "USD";
 
   const loadPortfolio = useCallback(
     async (currency: DisplayCurrency, silent = false) => {
@@ -69,42 +84,71 @@ export function DashboardClient({
     return () => clearInterval(interval);
   }, [displayCurrency, loadPortfolio]);
 
+  function resetForm() {
+    setForm(emptyForm);
+    setEditingId(null);
+    setShowForm(false);
+    setFormError("");
+  }
+
+  function startAdd() {
+    setEditingId(null);
+    setForm(emptyForm);
+    setShowForm(true);
+    setFormError("");
+  }
+
+  function startEdit(holding: PortfolioSummary["holdings"][number]) {
+    setEditingId(holding.id);
+    setForm({
+      ticker: holding.ticker,
+      name: holding.name ?? "",
+      market: holding.market,
+      shares: String(holding.shares),
+      avgPrice: String(holding.avgPrice),
+      boughtInKrw: holding.boughtInKrw,
+    });
+    setShowForm(true);
+    setFormError("");
+  }
+
   async function handleCurrencyChange(currency: DisplayCurrency) {
     setDisplayCurrency(currency);
     await loadPortfolio(currency, true);
   }
 
-  async function handleAddHolding(event: FormEvent) {
+  async function handleSaveHolding(event: FormEvent) {
     event.preventDefault();
     setSaving(true);
     setFormError("");
 
-    const response = await fetch("/api/holdings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ticker,
-        name: name || undefined,
-        market,
-        currency,
-        shares: Number(shares),
-        avgPrice: Number(avgPrice),
-      }),
-    });
+    const payload = {
+      ticker: form.ticker,
+      name: form.name || undefined,
+      market: form.market,
+      shares: Number(form.shares),
+      avgPrice: Number(form.avgPrice),
+      boughtInKrw: form.market === "US" ? form.boughtInKrw : false,
+    };
+
+    const response = await fetch(
+      editingId ? `/api/holdings/${editingId}` : "/api/holdings",
+      {
+        method: editingId ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+    );
 
     const data = (await response.json()) as { error?: string };
     setSaving(false);
 
     if (!response.ok) {
-      setFormError(data.error ?? "Unable to add holding.");
+      setFormError(data.error ?? "Unable to save holding.");
       return;
     }
 
-    setTicker("");
-    setName("");
-    setShares("");
-    setAvgPrice("");
-    setShowForm(false);
+    resetForm();
     await loadPortfolio(displayCurrency, true);
   }
 
@@ -114,6 +158,9 @@ export function DashboardClient({
     }
 
     await fetch(`/api/holdings/${id}`, { method: "DELETE" });
+    if (editingId === id) {
+      resetForm();
+    }
     await loadPortfolio(displayCurrency, true);
   }
 
@@ -185,14 +232,8 @@ export function DashboardClient({
           </section>
 
           <section className="mb-8 grid gap-4 md:grid-cols-2">
-            <MarketCard
-              title="US stocks (USD)"
-              summary={portfolio.usSummary}
-            />
-            <MarketCard
-              title="Korean stocks (KRW)"
-              summary={portfolio.krSummary}
-            />
+            <MarketCard title="US stocks" summary={portfolio.usSummary} />
+            <MarketCard title="Korean stocks" summary={portfolio.krSummary} />
           </section>
 
           <section className="rounded-2xl border border-card-border bg-card/60 p-6">
@@ -200,57 +241,102 @@ export function DashboardClient({
               <div>
                 <h2 className="text-xl font-medium">Holdings</h2>
                 <p className="text-sm text-muted">
-                  Add tickers like AAPL for US or 005930 / 005930.KS for Korea.
+                  Add tickers like AAPL for US or 005930 for Korea. Check
+                  환차손익 for US stocks bought in KRW.
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => setShowForm((value) => !value)}
+                onClick={() => (showForm && !editingId ? resetForm() : startAdd())}
                 className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500"
               >
-                {showForm ? "Cancel" : "Add holding"}
+                {showForm && !editingId ? "Cancel" : "Add holding"}
               </button>
             </div>
 
             {showForm ? (
               <form
-                onSubmit={handleAddHolding}
+                onSubmit={handleSaveHolding}
                 className="mb-8 grid gap-4 rounded-xl border border-card-border bg-background/40 p-4 md:grid-cols-2"
               >
+                <div className="md:col-span-2">
+                  <h3 className="font-medium">
+                    {editingId ? "Edit holding" : "New holding"}
+                  </h3>
+                </div>
                 <Field label="Ticker">
                   <input
-                    value={ticker}
-                    onChange={(event) => setTicker(event.target.value)}
-                    placeholder={market === "US" ? "AAPL" : "005930"}
+                    value={form.ticker}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        ticker: event.target.value,
+                      }))
+                    }
+                    placeholder={form.market === "US" ? "AAPL" : "005930"}
                     required
                     className={inputClass}
                   />
                 </Field>
                 <Field label="Name (optional)">
                   <input
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
+                    value={form.name}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        name: event.target.value,
+                      }))
+                    }
                     placeholder="Apple Inc."
                     className={inputClass}
                   />
                 </Field>
                 <Field label="Market">
                   <select
-                    value={market}
-                    onChange={(event) =>
-                      setMarket(event.target.value as "US" | "KR")
-                    }
+                    value={form.market}
+                    onChange={(event) => {
+                      const market = event.target.value as "US" | "KR";
+                      setForm((current) => ({
+                        ...current,
+                        market,
+                        boughtInKrw: market === "KR" ? false : current.boughtInKrw,
+                      }));
+                    }}
                     className={inputClass}
                   >
-                    <option value="US">United States (USD)</option>
-                    <option value="KR">Korea (KRW)</option>
+                    <option value="US">United States</option>
+                    <option value="KR">Korea</option>
                   </select>
                 </Field>
-                <Field label="Currency">
+                <Field label="Cost currency">
                   <input
                     value={currency}
                     readOnly
                     className={`${inputClass} text-muted`}
+                  />
+                </Field>
+                <Field
+                  label={
+                    form.boughtInKrw && form.market === "US"
+                      ? "Average price (KRW per share)"
+                      : form.market === "KR"
+                        ? "Average price (KRW per share)"
+                        : "Average price (USD per share)"
+                  }
+                >
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={form.avgPrice}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        avgPrice: event.target.value,
+                      }))
+                    }
+                    required
+                    className={inputClass}
                   />
                 </Field>
                 <Field label="Shares">
@@ -258,34 +344,60 @@ export function DashboardClient({
                     type="number"
                     min="0"
                     step="any"
-                    value={shares}
-                    onChange={(event) => setShares(event.target.value)}
+                    value={form.shares}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        shares: event.target.value,
+                      }))
+                    }
                     required
                     className={inputClass}
                   />
                 </Field>
-                <Field label="Average price">
-                  <input
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={avgPrice}
-                    onChange={(event) => setAvgPrice(event.target.value)}
-                    required
-                    className={inputClass}
-                  />
-                </Field>
-                <div className="md:col-span-2">
+                {form.market === "US" ? (
+                  <label className="flex items-start gap-3 rounded-xl border border-card-border bg-background/40 p-4 md:col-span-2">
+                    <input
+                      type="checkbox"
+                      checked={form.boughtInKrw}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          boughtInKrw: event.target.checked,
+                        }))
+                      }
+                      className="mt-1 h-4 w-4 accent-accent"
+                    />
+                    <span>
+                      <span className="block font-medium">환차손익 (국내 원화 매수)</span>
+                      <span className="mt-1 block text-sm text-muted">
+                        Check this if you bought this US stock in Korea. Enter
+                        your average price in KRW — profit includes exchange
+                        rate changes.
+                      </span>
+                    </span>
+                  </label>
+                ) : null}
+                <div className="md:col-span-2 flex flex-wrap gap-3">
                   {formError ? (
-                    <p className="mb-3 text-sm text-loss">{formError}</p>
+                    <p className="w-full text-sm text-loss">{formError}</p>
                   ) : null}
                   <button
                     type="submit"
                     disabled={saving}
                     className="rounded-xl bg-accent px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-500 disabled:opacity-60"
                   >
-                    {saving ? "Saving..." : "Save holding"}
+                    {saving ? "Saving..." : editingId ? "Update holding" : "Save holding"}
                   </button>
+                  {editingId ? (
+                    <button
+                      type="button"
+                      onClick={resetForm}
+                      className="rounded-xl border border-card-border px-5 py-2.5 text-sm transition hover:border-accent"
+                    >
+                      Cancel edit
+                    </button>
+                  ) : null}
                 </div>
               </form>
             ) : null}
@@ -313,17 +425,25 @@ export function DashboardClient({
                     {portfolio.holdings.map((holding) => {
                       const positive = (holding.profit ?? 0) >= 0;
                       const color = positive ? "text-profit" : "text-loss";
+                      const isEditing = editingId === holding.id;
 
                       return (
                         <tr
                           key={holding.id}
-                          className="border-b border-card-border/60 last:border-none"
+                          className={`border-b border-card-border/60 last:border-none ${
+                            isEditing ? "bg-accent-soft/30" : ""
+                          }`}
                         >
                           <td className="px-3 py-4">
                             <div className="font-medium">{holding.ticker}</div>
                             <div className="text-xs text-muted">
                               {holding.name || holding.quoteName || "—"}
                             </div>
+                            {holding.boughtInKrw ? (
+                              <span className="mt-1 inline-block rounded-full bg-accent-soft px-2 py-0.5 text-xs text-accent">
+                                환차손익
+                              </span>
+                            ) : null}
                           </td>
                           <td className="px-3 py-4">
                             {holding.market} · {holding.currency}
@@ -333,12 +453,27 @@ export function DashboardClient({
                             {formatMoney(holding.avgPrice, holding.currency)}
                           </td>
                           <td className="px-3 py-4">
-                            {holding.currentPrice !== null
-                              ? formatMoney(
-                                  holding.currentPrice,
-                                  holding.currency,
-                                )
-                              : "—"}
+                            {holding.boughtInKrw && holding.currentPrice !== null ? (
+                              <div>
+                                <div>{formatMoney(holding.currentPrice, "USD")}</div>
+                                {holding.currentPriceDisplay !== null ? (
+                                  <div className="text-xs text-muted">
+                                    ≈{" "}
+                                    {formatMoney(
+                                      holding.currentPriceDisplay,
+                                      "KRW",
+                                    )}
+                                  </div>
+                                ) : null}
+                              </div>
+                            ) : holding.currentPriceDisplay !== null ? (
+                              formatMoney(
+                                holding.currentPriceDisplay,
+                                holding.currency,
+                              )
+                            ) : (
+                              "—"
+                            )}
                           </td>
                           <td className={`px-3 py-4 ${color}`}>
                             {holding.profit !== null
@@ -351,13 +486,22 @@ export function DashboardClient({
                               : "—"}
                           </td>
                           <td className="px-3 py-4">
-                            <button
-                              type="button"
-                              onClick={() => void handleDelete(holding.id)}
-                              className="text-muted transition hover:text-loss"
-                            >
-                              Remove
-                            </button>
+                            <div className="flex gap-3">
+                              <button
+                                type="button"
+                                onClick={() => startEdit(holding)}
+                                className="text-muted transition hover:text-accent"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void handleDelete(holding.id)}
+                                className="text-muted transition hover:text-loss"
+                              >
+                                Remove
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );

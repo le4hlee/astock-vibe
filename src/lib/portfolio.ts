@@ -7,9 +7,11 @@ export type HoldingWithQuote = {
   name: string | null;
   market: Market;
   currency: Currency;
+  boughtInKrw: boolean;
   shares: number;
   avgPrice: number;
   currentPrice: number | null;
+  currentPriceDisplay: number | null;
   costBasis: number;
   currentValue: number | null;
   profit: number | null;
@@ -65,14 +67,27 @@ function convertAmount(
 
 function summarizeMarket(
   items: HoldingWithQuote[],
-  currency: Currency,
+  market: Market,
+  displayCurrency: Currency,
+  usdKrwRate: number | null,
 ): MarketSummary {
-  const relevant = items.filter((item) => item.currency === currency);
-  const cost = relevant.reduce((sum, item) => sum + item.costBasis, 0);
-  const value = relevant.reduce(
-    (sum, item) => sum + (item.currentValue ?? item.costBasis),
-    0,
-  );
+  const relevant = items.filter((item) => item.market === market);
+
+  const cost = relevant.reduce((sum, item) => {
+    return (
+      sum +
+      convertAmount(item.costBasis, item.currency, displayCurrency, usdKrwRate)
+    );
+  }, 0);
+
+  const value = relevant.reduce((sum, item) => {
+    const itemValue = item.currentValue ?? item.costBasis;
+    return (
+      sum +
+      convertAmount(itemValue, item.currency, displayCurrency, usdKrwRate)
+    );
+  }, 0);
+
   const profit = value - cost;
 
   return {
@@ -80,7 +95,59 @@ function summarizeMarket(
     value,
     profit,
     profitPercent: cost > 0 ? (profit / cost) * 100 : 0,
-    currency,
+    currency: displayCurrency,
+  };
+}
+
+function buildHoldingQuote(
+  holding: Holding,
+  currentPriceUsd: number | null,
+  usdKrwRate: number | null,
+): HoldingWithQuote {
+  const costBasis = holding.shares * holding.avgPrice;
+  const isUsBoughtInKrw =
+    holding.market === "US" && holding.boughtInKrw && holding.currency === "KRW";
+
+  let currentPrice: number | null = null;
+  let currentPriceDisplay: number | null = null;
+  let currentValue: number | null = null;
+
+  if (currentPriceUsd !== null) {
+    if (isUsBoughtInKrw) {
+      currentPrice = currentPriceUsd;
+      currentPriceDisplay =
+        usdKrwRate !== null ? currentPriceUsd * usdKrwRate : null;
+      currentValue =
+        usdKrwRate !== null
+          ? holding.shares * currentPriceUsd * usdKrwRate
+          : null;
+    } else {
+      currentPrice = currentPriceUsd;
+      currentPriceDisplay = currentPriceUsd;
+      currentValue = holding.shares * currentPriceUsd;
+    }
+  }
+
+  const profit = currentValue !== null ? currentValue - costBasis : null;
+  const profitPercent =
+    profit !== null && costBasis > 0 ? (profit / costBasis) * 100 : null;
+
+  return {
+    id: holding.id,
+    ticker: holding.ticker,
+    name: holding.name,
+    market: holding.market,
+    currency: holding.currency,
+    boughtInKrw: holding.boughtInKrw,
+    shares: holding.shares,
+    avgPrice: holding.avgPrice,
+    currentPrice,
+    currentPriceDisplay,
+    costBasis,
+    currentValue,
+    profit,
+    profitPercent,
+    quoteName: null,
   };
 }
 
@@ -94,28 +161,14 @@ export async function buildPortfolioSummary(
     holdings.map(async (holding) => {
       const symbol = normalizeTicker(holding.ticker, holding.market);
       const quote = await fetchQuote(symbol);
-      const currentPrice = quote?.price ?? null;
-      const costBasis = holding.shares * holding.avgPrice;
-      const currentValue =
-        currentPrice !== null ? holding.shares * currentPrice : null;
-      const profit =
-        currentValue !== null ? currentValue - costBasis : null;
-      const profitPercent =
-        profit !== null && costBasis > 0 ? (profit / costBasis) * 100 : null;
+      const result = buildHoldingQuote(
+        holding,
+        quote?.price ?? null,
+        usdKrwRate,
+      );
 
       return {
-        id: holding.id,
-        ticker: holding.ticker,
-        name: holding.name,
-        market: holding.market,
-        currency: holding.currency,
-        shares: holding.shares,
-        avgPrice: holding.avgPrice,
-        currentPrice,
-        costBasis,
-        currentValue,
-        profit,
-        profitPercent,
+        ...result,
         quoteName: quote?.name ?? null,
       } satisfies HoldingWithQuote;
     }),
@@ -144,8 +197,18 @@ export async function buildPortfolioSummary(
     totalValue,
     totalProfit,
     totalProfitPercent: totalCost > 0 ? (totalProfit / totalCost) * 100 : 0,
-    usSummary: summarizeMarket(holdingsWithQuotes, "USD"),
-    krSummary: summarizeMarket(holdingsWithQuotes, "KRW"),
+    usSummary: summarizeMarket(
+      holdingsWithQuotes,
+      "US",
+      displayCurrency,
+      usdKrwRate,
+    ),
+    krSummary: summarizeMarket(
+      holdingsWithQuotes,
+      "KR",
+      displayCurrency,
+      usdKrwRate,
+    ),
     holdings: holdingsWithQuotes,
     lastUpdated: new Date().toISOString(),
   };
