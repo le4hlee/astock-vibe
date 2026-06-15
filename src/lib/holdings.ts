@@ -31,7 +31,7 @@ export function validateHoldingInput(input: HoldingInput): string | null {
   }
 
   if (market === "KR" && input.boughtInKrw) {
-    return "환차손익 option only applies to US stocks.";
+    return "환차수익 option only applies to US stocks.";
   }
 
   return null;

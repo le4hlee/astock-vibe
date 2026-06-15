@@ -241,8 +241,11 @@ export function DashboardClient({
               <div>
                 <h2 className="text-xl font-medium">Holdings</h2>
                 <p className="text-sm text-muted">
-                  Add tickers like AAPL for US or 005930 for Korea. Check
-                  환차손익 for US stocks bought in KRW.
+                  Add tickers like AAPL (US) or 005930 (Korea). Use{" "}
+                  <strong className="text-foreground">Edit</strong> on any row to
+                  update. US stocks bought in Korea: enable{" "}
+                  <strong className="text-foreground">환차수익 (FX gain)</strong>{" "}
+                  when adding or editing.
                 </p>
               </div>
               <button
@@ -308,6 +311,30 @@ export function DashboardClient({
                     <option value="KR">Korea</option>
                   </select>
                 </Field>
+                {form.market === "US" ? (
+                  <label className="flex items-start gap-3 rounded-xl border-2 border-accent/40 bg-accent-soft/20 p-4 md:col-span-2">
+                    <input
+                      type="checkbox"
+                      checked={form.boughtInKrw}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          boughtInKrw: event.target.checked,
+                        }))
+                      }
+                      className="mt-1 h-5 w-5 accent-accent"
+                    />
+                    <span>
+                      <span className="block font-semibold text-foreground">
+                        환차수익 (FX gain / 환차손익)
+                      </span>
+                      <span className="mt-1 block text-sm text-muted">
+                        US stock bought in Korea through a domestic broker. Enter
+                        average price in KRW — P/L includes exchange rate changes.
+                      </span>
+                    </span>
+                  </label>
+                ) : null}
                 <Field label="Cost currency">
                   <input
                     value={currency}
@@ -355,29 +382,6 @@ export function DashboardClient({
                     className={inputClass}
                   />
                 </Field>
-                {form.market === "US" ? (
-                  <label className="flex items-start gap-3 rounded-xl border border-card-border bg-background/40 p-4 md:col-span-2">
-                    <input
-                      type="checkbox"
-                      checked={form.boughtInKrw}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          boughtInKrw: event.target.checked,
-                        }))
-                      }
-                      className="mt-1 h-4 w-4 accent-accent"
-                    />
-                    <span>
-                      <span className="block font-medium">환차손익 (국내 원화 매수)</span>
-                      <span className="mt-1 block text-sm text-muted">
-                        Check this if you bought this US stock in Korea. Enter
-                        your average price in KRW — profit includes exchange
-                        rate changes.
-                      </span>
-                    </span>
-                  </label>
-                ) : null}
                 <div className="md:col-span-2 flex flex-wrap gap-3">
                   {formError ? (
                     <p className="w-full text-sm text-loss">{formError}</p>
@@ -407,115 +411,128 @@ export function DashboardClient({
                 No holdings yet. Add your first stock to start tracking profit.
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-left text-sm">
-                  <thead className="border-b border-card-border text-muted">
-                    <tr>
-                      <th className="px-3 py-3 font-medium">Ticker</th>
-                      <th className="px-3 py-3 font-medium">Market</th>
-                      <th className="px-3 py-3 font-medium">Shares</th>
-                      <th className="px-3 py-3 font-medium">Avg price</th>
-                      <th className="px-3 py-3 font-medium">Current</th>
-                      <th className="px-3 py-3 font-medium">P/L</th>
-                      <th className="px-3 py-3 font-medium">P/L %</th>
-                      <th className="px-3 py-3 font-medium"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {portfolio.holdings.map((holding) => {
-                      const positive = (holding.profit ?? 0) >= 0;
-                      const color = positive ? "text-profit" : "text-loss";
-                      const isEditing = editingId === holding.id;
-
-                      return (
-                        <tr
-                          key={holding.id}
-                          className={`border-b border-card-border/60 last:border-none ${
-                            isEditing ? "bg-accent-soft/30" : ""
-                          }`}
-                        >
-                          <td className="px-3 py-4">
-                            <div className="font-medium">{holding.ticker}</div>
-                            <div className="text-xs text-muted">
-                              {holding.name || holding.quoteName || "—"}
-                            </div>
-                            {holding.boughtInKrw ? (
-                              <span className="mt-1 inline-block rounded-full bg-accent-soft px-2 py-0.5 text-xs text-accent">
-                                환차손익
-                              </span>
-                            ) : null}
-                          </td>
-                          <td className="px-3 py-4">
-                            {holding.market} · {holding.currency}
-                          </td>
-                          <td className="px-3 py-4">{holding.shares}</td>
-                          <td className="px-3 py-4">
-                            {formatMoney(holding.avgPrice, holding.currency)}
-                          </td>
-                          <td className="px-3 py-4">
-                            {holding.boughtInKrw &&
-                            holding.currentPrice !== null &&
-                            holding.currentPriceDisplay !== null ? (
-                              <div>
-                                <div>
-                                  {formatMoney(holding.currentPrice, "USD")}
-                                </div>
-                                <div className="text-xs text-muted">
-                                  ≈{" "}
-                                  {formatMoney(
-                                    holding.currentPriceDisplay,
-                                    "KRW",
-                                  )}
-                                </div>
-                              </div>
-                            ) : holding.currentPriceDisplay !== null ? (
-                              formatMoney(
-                                holding.currentPriceDisplay,
-                                holding.currency,
-                              )
-                            ) : (
-                              "—"
-                            )}
-                          </td>
-                          <td className={`px-3 py-4 ${color}`}>
-                            {holding.profit !== null
-                              ? formatMoney(holding.profit, holding.currency)
-                              : "—"}
-                          </td>
-                          <td className={`px-3 py-4 ${color}`}>
-                            {holding.profitPercent !== null
-                              ? formatPercent(holding.profitPercent)
-                              : "—"}
-                          </td>
-                          <td className="px-3 py-4">
-                            <div className="flex gap-3">
-                              <button
-                                type="button"
-                                onClick={() => startEdit(holding)}
-                                className="text-muted transition hover:text-accent"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => void handleDelete(holding.id)}
-                                className="text-muted transition hover:text-loss"
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div className="grid gap-4">
+                {portfolio.holdings.map((holding) => (
+                  <HoldingCard
+                    key={holding.id}
+                    holding={holding}
+                    isEditing={editingId === holding.id}
+                    onEdit={() => startEdit(holding)}
+                    onDelete={() => void handleDelete(holding.id)}
+                  />
+                ))}
               </div>
             )}
           </section>
         </>
       )}
     </main>
+  );
+}
+
+function HoldingCard({
+  holding,
+  isEditing,
+  onEdit,
+  onDelete,
+}: {
+  holding: PortfolioSummary["holdings"][number];
+  isEditing: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const positive = (holding.profit ?? 0) >= 0;
+  const color = positive ? "text-profit" : "text-loss";
+
+  return (
+    <article
+      className={`rounded-xl border p-4 ${
+        isEditing
+          ? "border-accent bg-accent-soft/20"
+          : "border-card-border bg-background/30"
+      }`}
+    >
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-lg font-semibold">{holding.ticker}</h3>
+            {holding.boughtInKrw ? (
+              <span className="rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-medium text-accent">
+                환차수익
+              </span>
+            ) : null}
+          </div>
+          <p className="text-sm text-muted">
+            {holding.name || holding.quoteName || "—"} · {holding.market} ·{" "}
+            {holding.currency}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onEdit}
+            className="rounded-lg border border-accent bg-accent/10 px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent hover:text-white"
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            className="rounded-lg border border-card-border px-4 py-2 text-sm text-muted transition hover:border-loss hover:text-loss"
+          >
+            Remove
+          </button>
+        </div>
+      </div>
+
+      <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
+        <div>
+          <dt className="text-muted">Shares</dt>
+          <dd className="mt-1 font-medium">{holding.shares}</dd>
+        </div>
+        <div>
+          <dt className="text-muted">Avg price</dt>
+          <dd className="mt-1 font-medium">
+            {formatMoney(holding.avgPrice, holding.currency)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted">Current</dt>
+          <dd className="mt-1 font-medium">
+            {holding.boughtInKrw &&
+            holding.currentPrice !== null &&
+            holding.currentPriceDisplay !== null ? (
+              <>
+                <div>{formatMoney(holding.currentPrice, "USD")}</div>
+                <div className="text-xs text-muted">
+                  ≈ {formatMoney(holding.currentPriceDisplay, "KRW")}
+                </div>
+              </>
+            ) : holding.currentPriceDisplay !== null ? (
+              formatMoney(holding.currentPriceDisplay, holding.currency)
+            ) : (
+              "—"
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted">P/L</dt>
+          <dd className={`mt-1 font-medium ${color}`}>
+            {holding.profit !== null
+              ? formatMoney(holding.profit, holding.currency)
+              : "—"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted">P/L %</dt>
+          <dd className={`mt-1 font-medium ${color}`}>
+            {holding.profitPercent !== null
+              ? formatPercent(holding.profitPercent)
+              : "—"}
+          </dd>
+        </div>
+      </dl>
+    </article>
   );
 }
 
