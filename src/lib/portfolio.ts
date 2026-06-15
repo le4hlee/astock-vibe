@@ -25,6 +25,15 @@ export type HoldingWithQuote = {
   quoteName: string | null;
 };
 
+export type MarketSummary = {
+  cost: number;
+  value: number;
+  profit: number;
+  profitPercent: number;
+  currency: Currency;
+  holdingCount: number;
+};
+
 export type PortfolioSummary = {
   displayCurrency: Currency;
   usdKrwRate: number | null;
@@ -33,18 +42,46 @@ export type PortfolioSummary = {
   totalProfit: number;
   totalProfitPercent: number;
   usSummary: MarketSummary;
+  fxSummary: MarketSummary;
   krSummary: MarketSummary;
   holdings: HoldingWithQuote[];
   lastUpdated: string;
 };
 
-type MarketSummary = {
-  cost: number;
-  value: number;
-  profit: number;
-  profitPercent: number;
-  currency: Currency;
-};
+function summarizeHoldings(
+  items: HoldingWithQuote[],
+  filter: (item: HoldingWithQuote) => boolean,
+  displayCurrency: Currency,
+  usdKrwRate: number | null,
+): MarketSummary {
+  const relevant = items.filter(filter);
+
+  const cost = relevant.reduce((sum, item) => {
+    return (
+      sum +
+      convertAmount(item.costBasis, item.currency, displayCurrency, usdKrwRate)
+    );
+  }, 0);
+
+  const value = relevant.reduce((sum, item) => {
+    const itemValue = item.currentValue ?? item.costBasis;
+    return (
+      sum +
+      convertAmount(itemValue, item.currency, displayCurrency, usdKrwRate)
+    );
+  }, 0);
+
+  const profit = value - cost;
+
+  return {
+    cost,
+    value,
+    profit,
+    profitPercent: cost > 0 ? (profit / cost) * 100 : 0,
+    currency: displayCurrency,
+    holdingCount: relevant.length,
+  };
+}
 
 function convertAmount(
   amount: number,
@@ -71,38 +108,44 @@ function convertAmount(
   return amount;
 }
 
-function summarizeMarket(
+
+function summarizeUsUsdHoldings(
   items: HoldingWithQuote[],
-  market: Market,
   displayCurrency: Currency,
   usdKrwRate: number | null,
 ): MarketSummary {
-  const relevant = items.filter((item) => item.market === market);
+  return summarizeHoldings(
+    items,
+    (item) => item.market === "US" && !item.boughtInKrw,
+    displayCurrency,
+    usdKrwRate,
+  );
+}
 
-  const cost = relevant.reduce((sum, item) => {
-    return (
-      sum +
-      convertAmount(item.costBasis, item.currency, displayCurrency, usdKrwRate)
-    );
-  }, 0);
+function summarizeFxHoldings(
+  items: HoldingWithQuote[],
+  displayCurrency: Currency,
+  usdKrwRate: number | null,
+): MarketSummary {
+  return summarizeHoldings(
+    items,
+    (item) => item.market === "US" && item.boughtInKrw,
+    displayCurrency,
+    usdKrwRate,
+  );
+}
 
-  const value = relevant.reduce((sum, item) => {
-    const itemValue = item.currentValue ?? item.costBasis;
-    return (
-      sum +
-      convertAmount(itemValue, item.currency, displayCurrency, usdKrwRate)
-    );
-  }, 0);
-
-  const profit = value - cost;
-
-  return {
-    cost,
-    value,
-    profit,
-    profitPercent: cost > 0 ? (profit / cost) * 100 : 0,
-    currency: displayCurrency,
-  };
+function summarizeKrHoldings(
+  items: HoldingWithQuote[],
+  displayCurrency: Currency,
+  usdKrwRate: number | null,
+): MarketSummary {
+  return summarizeHoldings(
+    items,
+    (item) => item.market === "KR",
+    displayCurrency,
+    usdKrwRate,
+  );
 }
 
 function buildHoldingQuote(
@@ -209,15 +252,18 @@ export async function buildPortfolioSummary(
     totalValue,
     totalProfit,
     totalProfitPercent: totalCost > 0 ? (totalProfit / totalCost) * 100 : 0,
-    usSummary: summarizeMarket(
+    usSummary: summarizeUsUsdHoldings(
       holdingsWithQuotes,
-      "US",
       displayCurrency,
       usdKrwRate,
     ),
-    krSummary: summarizeMarket(
+    fxSummary: summarizeFxHoldings(
       holdingsWithQuotes,
-      "KR",
+      displayCurrency,
+      usdKrwRate,
+    ),
+    krSummary: summarizeKrHoldings(
+      holdingsWithQuotes,
       displayCurrency,
       usdKrwRate,
     ),

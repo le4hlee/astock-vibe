@@ -231,9 +231,23 @@ export function DashboardClient({
             />
           </section>
 
-          <section className="mb-8 grid gap-4 md:grid-cols-2">
-            <MarketCard title="US stocks" summary={portfolio.usSummary} />
-            <MarketCard title="Korean stocks" summary={portfolio.krSummary} />
+          <section className="mb-8 grid gap-4 md:grid-cols-3">
+            <MarketCard
+              title="US stocks (USD)"
+              summary={portfolio.usSummary}
+              emptyLabel="No US stocks in USD"
+            />
+            <MarketCard
+              title="환차수익 (FX gain)"
+              summary={portfolio.fxSummary}
+              emptyLabel="No US stocks bought in KRW"
+              highlight
+            />
+            <MarketCard
+              title="Korean stocks (KRW)"
+              summary={portfolio.krSummary}
+              emptyLabel="No Korean stocks"
+            />
           </section>
 
           <section className="rounded-2xl border border-card-border bg-card/60 p-6">
@@ -561,21 +575,33 @@ function SummaryCard({
 function MarketCard({
   title,
   summary,
+  emptyLabel,
+  highlight = false,
 }: {
   title: string;
   summary: PortfolioSummary["usSummary"];
+  emptyLabel?: string;
+  highlight?: boolean;
 }) {
+  const isEmpty = summary.holdingCount === 0;
   const color = summary.profit >= 0 ? "text-profit" : "text-loss";
 
   return (
-    <div className="rounded-2xl border border-card-border bg-card/70 p-6">
+    <div
+      className={`rounded-2xl border p-6 ${
+        highlight
+          ? "border-accent/40 bg-accent-soft/10"
+          : "border-card-border bg-card/70"
+      }`}
+    >
       <p className="text-sm text-muted">{title}</p>
-      <p className={`mt-2 text-2xl font-semibold ${color}`}>
-        {formatPercent(summary.profitPercent)}
+      <p className={`mt-2 text-2xl font-semibold ${isEmpty ? "text-muted" : color}`}>
+        {isEmpty ? "—" : formatPercent(summary.profitPercent)}
       </p>
       <p className="mt-2 text-sm text-muted">
-        Value {formatMoney(summary.value, summary.currency)} · Cost{" "}
-        {formatMoney(summary.cost, summary.currency)}
+        {isEmpty
+          ? emptyLabel ?? "No holdings"
+          : `Value ${formatMoney(summary.value, summary.currency)} · Cost ${formatMoney(summary.cost, summary.currency)} · ${summary.holdingCount} holding${summary.holdingCount === 1 ? "" : "s"}`}
       </p>
     </div>
   );
