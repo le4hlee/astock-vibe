@@ -18,13 +18,14 @@ enum Currency {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  name         String?
-  passwordHash String
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  holdings     Holding[]
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  name               String?
+  passwordHash       String
+  rememberMeDefault  Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  holdings           Holding[]
 }
 
 model Holding {

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { signOut } from "next-auth/react";
 import type { PortfolioSummary } from "@/lib/portfolio";
@@ -192,6 +193,12 @@ export function DashboardClient({
           >
             {refreshing ? "Refreshing..." : "Refresh"}
           </button>
+          <Link
+            href="/dashboard/settings"
+            className="rounded-lg border border-card-border px-4 py-2 text-sm text-muted transition hover:border-accent hover:text-foreground"
+          >
+            Settings
+          </Link>
           <button
             type="button"
             onClick={() => signOut({ callbackUrl: "/" })}
