@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { AuthShell, Field, inputClass } from "@/components/auth-shell";
+import { useLanguage } from "@/components/language-provider";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,7 +30,7 @@ export default function RegisterPage() {
 
     if (!response.ok) {
       setLoading(false);
-      setError(data.error ?? "Unable to create account.");
+      setError(data.error ?? t("register.error"));
       return;
     }
 
@@ -36,12 +38,9 @@ export default function RegisterPage() {
   }
 
   return (
-    <AuthShell
-      title="Create your account"
-      subtitle="Save your holdings and track profit across markets."
-    >
+    <AuthShell title={t("register.title")} subtitle={t("register.subtitle")}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <Field label="Name (optional)">
+        <Field label={t("register.nameOptional")}>
           <input
             type="text"
             value={name}
@@ -50,7 +49,7 @@ export default function RegisterPage() {
             className={inputClass}
           />
         </Field>
-        <Field label="Email">
+        <Field label={t("register.email")}>
           <input
             type="email"
             value={email}
@@ -60,7 +59,7 @@ export default function RegisterPage() {
             className={inputClass}
           />
         </Field>
-        <Field label="Password">
+        <Field label={t("register.password")}>
           <input
             type="password"
             value={password}
@@ -77,13 +76,13 @@ export default function RegisterPage() {
           disabled={loading}
           className="w-full rounded-xl bg-accent py-3 font-medium text-white transition hover:bg-blue-500 disabled:opacity-60"
         >
-          {loading ? "Creating account..." : "Sign up"}
+          {loading ? t("register.creating") : t("register.submit")}
         </button>
       </form>
       <p className="mt-6 text-center text-sm text-muted">
-        Already have an account?{" "}
+        {t("register.hasAccount")}{" "}
         <Link href="/login" className="text-accent hover:underline">
-          Log in
+          {t("nav.logIn")}
         </Link>
       </p>
     </AuthShell>

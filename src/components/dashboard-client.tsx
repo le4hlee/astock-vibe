@@ -1,11 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { signOut } from "next-auth/react";
 import type { PortfolioSummary } from "@/lib/portfolio";
 import { formatMoney, formatPercent } from "@/lib/stocks";
 import { Field, inputClass } from "@/components/auth-shell";
+import { useLanguage } from "@/components/language-provider";
+import { LanguageToggle } from "@/components/language-toggle";
+import {
+  StockSearchInput,
+  type StockSearchInputHandle,
+} from "@/components/stock-search-input";
 
 type DisplayCurrency = "USD" | "KRW";
 
@@ -45,6 +51,8 @@ export function DashboardClient({
   const [form, setForm] = useState<HoldingFormState>(emptyForm);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
+  const searchInputRef = useRef<StockSearchInputHandle>(null);
+  const { t } = useLanguage();
 
   const currency =
     form.market === "KR" ? "KRW" : form.boughtInKrw ? "KRW" : "USD";
@@ -69,12 +77,12 @@ export function DashboardClient({
         const data = (await response.json()) as PortfolioSummary;
         setPortfolio(data);
       } catch {
-        setError("Could not load portfolio. Please try again.");
+        setError(t("dashboard.loadError"));
       } finally {
         setRefreshing(false);
       }
     },
-    [],
+    [t],
   );
 
   useEffect(() => {
@@ -123,8 +131,17 @@ export function DashboardClient({
     setSaving(true);
     setFormError("");
 
+    const resolvedTicker =
+      searchInputRef.current?.resolveTicker().trim() || form.ticker.trim();
+
+    if (!resolvedTicker) {
+      setFormError(t("dashboard.selectCompany"));
+      setSaving(false);
+      return;
+    }
+
     const payload = {
-      ticker: form.ticker,
+      ticker: resolvedTicker,
       name: form.name || undefined,
       market: form.market,
       shares: Number(form.shares),
@@ -145,7 +162,7 @@ export function DashboardClient({
     setSaving(false);
 
     if (!response.ok) {
-      setFormError(data.error ?? "Unable to save holding.");
+      setFormError(data.error ?? t("dashboard.saveError"));
       return;
     }
 
@@ -154,7 +171,7 @@ export function DashboardClient({
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Remove this holding from your portfolio?")) {
+    if (!confirm(t("dashboard.confirmRemove"))) {
       return;
     }
 
@@ -172,15 +189,16 @@ export function DashboardClient({
     <main className="mx-auto min-h-screen max-w-6xl px-6 py-10">
       <header className="mb-10 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-sm text-muted">Portfolio</p>
+          <p className="text-sm text-muted">{t("dashboard.portfolio")}</p>
           <h1 className="text-3xl font-semibold tracking-tight">
-            {userName || "Your holdings"}
+            {userName || t("dashboard.yourHoldings")}
           </h1>
           {userEmail ? (
             <p className="mt-1 text-sm text-muted">{userEmail}</p>
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <LanguageToggle />
           <CurrencyToggle
             value={displayCurrency}
             onChange={(currency) => void handleCurrencyChange(currency)}
@@ -191,20 +209,20 @@ export function DashboardClient({
             disabled={refreshing}
             className="rounded-lg border border-card-border px-4 py-2 text-sm transition hover:border-accent disabled:opacity-60"
           >
-            {refreshing ? "Refreshing..." : "Refresh"}
+            {refreshing ? t("dashboard.refreshing") : t("dashboard.refresh")}
           </button>
           <Link
             href="/dashboard/settings"
             className="rounded-lg border border-card-border px-4 py-2 text-sm text-muted transition hover:border-accent hover:text-foreground"
           >
-            Settings
+            {t("nav.settings")}
           </Link>
           <button
             type="button"
             onClick={() => signOut({ callbackUrl: "/" })}
             className="rounded-lg border border-card-border px-4 py-2 text-sm text-muted transition hover:border-accent hover:text-foreground"
           >
-            Log out
+            {t("nav.logOut")}
           </button>
         </div>
       </header>
@@ -217,64 +235,66 @@ export function DashboardClient({
         <>
           <section className="mb-8 grid gap-4 lg:grid-cols-[2fr_1fr_1fr]">
             <SummaryCard
-              label="Total profit"
+              label={t("dashboard.totalProfit")}
               value={formatPercent(portfolio.totalProfitPercent)}
-              sub={`${formatMoney(portfolio.totalProfit, displayCurrency)} overall`}
+              sub={t("dashboard.overall", {
+                amount: formatMoney(portfolio.totalProfit, displayCurrency),
+              })}
               valueClass={profitColor}
             />
             <SummaryCard
-              label="Portfolio value"
+              label={t("dashboard.portfolioValue")}
               value={formatMoney(portfolio.totalValue, displayCurrency)}
-              sub={`Cost ${formatMoney(portfolio.totalCost, displayCurrency)}`}
+              sub={t("dashboard.cost", {
+                amount: formatMoney(portfolio.totalCost, displayCurrency),
+              })}
             />
             <SummaryCard
-              label="Last updated"
+              label={t("dashboard.lastUpdated")}
               value={new Date(portfolio.lastUpdated).toLocaleTimeString()}
               sub={
                 portfolio.usdKrwRate
-                  ? `1 USD = ${portfolio.usdKrwRate.toLocaleString("ko-KR", { maximumFractionDigits: 2 })} KRW`
-                  : "FX rate unavailable"
+                  ? t("dashboard.fxRate", {
+                      rate: portfolio.usdKrwRate.toLocaleString("ko-KR", {
+                        maximumFractionDigits: 2,
+                      }),
+                    })
+                  : t("dashboard.fxUnavailable")
               }
             />
           </section>
 
           <section className="mb-8 grid gap-4 md:grid-cols-3">
             <MarketCard
-              title="US stocks (USD)"
+              title={t("dashboard.usStocks")}
               summary={portfolio.usSummary}
-              emptyLabel="No US stocks in USD"
+              emptyLabel={t("dashboard.noUsStocks")}
             />
             <MarketCard
-              title="환차수익 (FX gain)"
+              title={t("dashboard.fxGain")}
               summary={portfolio.fxSummary}
-              emptyLabel="No US stocks bought in KRW"
+              emptyLabel={t("dashboard.noFxStocks")}
               highlight
             />
             <MarketCard
-              title="Korean stocks (KRW)"
+              title={t("dashboard.krStocks")}
               summary={portfolio.krSummary}
-              emptyLabel="No Korean stocks"
+              emptyLabel={t("dashboard.noKrStocks")}
             />
           </section>
 
           <section className="rounded-2xl border border-card-border bg-card/60 p-6">
             <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
               <div>
-                <h2 className="text-xl font-medium">Holdings</h2>
-                <p className="text-sm text-muted">
-                  Add tickers like AAPL (US) or 005930 (Korea). Use{" "}
-                  <strong className="text-foreground">Edit</strong> on any row to
-                  update. US stocks bought in Korea: enable{" "}
-                  <strong className="text-foreground">환차수익 (FX gain)</strong>{" "}
-                  when adding or editing.
-                </p>
+                <h2 className="text-xl font-medium">{t("dashboard.holdings")}</h2>
+                <p className="text-sm text-muted">{t("dashboard.holdingsHint")}</p>
               </div>
               <button
                 type="button"
                 onClick={() => (showForm && !editingId ? resetForm() : startAdd())}
                 className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500"
               >
-                {showForm && !editingId ? "Cancel" : "Add holding"}
+                {showForm && !editingId ? t("dashboard.cancel") : t("dashboard.addHolding")}
               </button>
             </div>
 
@@ -285,24 +305,26 @@ export function DashboardClient({
               >
                 <div className="md:col-span-2">
                   <h3 className="font-medium">
-                    {editingId ? "Edit holding" : "New holding"}
+                    {editingId ? t("dashboard.editHolding") : t("dashboard.newHolding")}
                   </h3>
                 </div>
-                <Field label="Ticker">
-                  <input
-                    value={form.ticker}
-                    onChange={(event) =>
+                <Field label={t("dashboard.company")}>
+                  <StockSearchInput
+                    ref={searchInputRef}
+                    key={`${editingId ?? "new"}-${form.market}`}
+                    market={form.market}
+                    ticker={form.ticker}
+                    name={form.name}
+                    onSelect={(selection) =>
                       setForm((current) => ({
                         ...current,
-                        ticker: event.target.value,
+                        ticker: selection.ticker,
+                        name: selection.name || current.name,
                       }))
                     }
-                    placeholder={form.market === "US" ? "AAPL" : "005930"}
-                    required
-                    className={inputClass}
                   />
                 </Field>
-                <Field label="Name (optional)">
+                <Field label={t("dashboard.nameOptional")}>
                   <input
                     value={form.name}
                     onChange={(event) =>
@@ -315,7 +337,7 @@ export function DashboardClient({
                     className={inputClass}
                   />
                 </Field>
-                <Field label="Market">
+                <Field label={t("dashboard.market")}>
                   <select
                     value={form.market}
                     onChange={(event) => {
@@ -323,13 +345,15 @@ export function DashboardClient({
                       setForm((current) => ({
                         ...current,
                         market,
+                        ticker: "",
+                        name: "",
                         boughtInKrw: market === "KR" ? false : current.boughtInKrw,
                       }));
                     }}
                     className={inputClass}
                   >
-                    <option value="US">United States</option>
-                    <option value="KR">Korea</option>
+                    <option value="US">{t("dashboard.marketUs")}</option>
+                    <option value="KR">{t("dashboard.marketKr")}</option>
                   </select>
                 </Field>
                 {form.market === "US" ? (
@@ -347,16 +371,15 @@ export function DashboardClient({
                     />
                     <span>
                       <span className="block font-semibold text-foreground">
-                        환차수익 (FX gain / 환차손익)
+                        {t("dashboard.fxGainLabel")}
                       </span>
                       <span className="mt-1 block text-sm text-muted">
-                        US stock bought in Korea through a domestic broker. Enter
-                        average price in KRW — P/L includes exchange rate changes.
+                        {t("dashboard.fxGainHint")}
                       </span>
                     </span>
                   </label>
                 ) : null}
-                <Field label="Cost currency">
+                <Field label={t("dashboard.costCurrency")}>
                   <input
                     value={currency}
                     readOnly
@@ -366,10 +389,10 @@ export function DashboardClient({
                 <Field
                   label={
                     form.boughtInKrw && form.market === "US"
-                      ? "Average price (KRW per share)"
+                      ? t("dashboard.avgPriceKrw")
                       : form.market === "KR"
-                        ? "Average price (KRW per share)"
-                        : "Average price (USD per share)"
+                        ? t("dashboard.avgPriceKrw")
+                        : t("dashboard.avgPriceUsd")
                   }
                 >
                   <input
@@ -387,7 +410,7 @@ export function DashboardClient({
                     className={inputClass}
                   />
                 </Field>
-                <Field label="Shares">
+                <Field label={t("dashboard.shares")}>
                   <input
                     type="number"
                     min="0"
@@ -412,7 +435,11 @@ export function DashboardClient({
                     disabled={saving}
                     className="rounded-xl bg-accent px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-500 disabled:opacity-60"
                   >
-                    {saving ? "Saving..." : editingId ? "Update holding" : "Save holding"}
+                    {saving
+                      ? t("dashboard.saving")
+                      : editingId
+                        ? t("dashboard.updateHolding")
+                        : t("dashboard.saveHolding")}
                   </button>
                   {editingId ? (
                     <button
@@ -420,7 +447,7 @@ export function DashboardClient({
                       onClick={resetForm}
                       className="rounded-xl border border-card-border px-5 py-2.5 text-sm transition hover:border-accent"
                     >
-                      Cancel edit
+                      {t("dashboard.cancelEdit")}
                     </button>
                   ) : null}
                 </div>
@@ -429,7 +456,7 @@ export function DashboardClient({
 
             {portfolio.holdings.length === 0 ? (
               <div className="rounded-xl border border-dashed border-card-border p-10 text-center text-muted">
-                No holdings yet. Add your first stock to start tracking profit.
+                {t("dashboard.emptyHoldings")}
               </div>
             ) : (
               <div className="grid gap-4">
@@ -462,6 +489,7 @@ function HoldingCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useLanguage();
   const positive = (holding.profit ?? 0) >= 0;
   const color = positive ? "text-profit" : "text-loss";
 
@@ -479,7 +507,7 @@ function HoldingCard({
             <h3 className="text-lg font-semibold">{holding.ticker}</h3>
             {holding.boughtInKrw ? (
               <span className="rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-medium text-accent">
-                환차수익
+                {t("dashboard.fxGainBadge")}
               </span>
             ) : null}
           </div>
@@ -494,31 +522,31 @@ function HoldingCard({
             onClick={onEdit}
             className="rounded-lg border border-accent bg-accent/10 px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent hover:text-white"
           >
-            Edit
+            {t("dashboard.edit")}
           </button>
           <button
             type="button"
             onClick={onDelete}
             className="rounded-lg border border-card-border px-4 py-2 text-sm text-muted transition hover:border-loss hover:text-loss"
           >
-            Remove
+            {t("dashboard.remove")}
           </button>
         </div>
       </div>
 
       <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
         <div>
-          <dt className="text-muted">Shares</dt>
+          <dt className="text-muted">{t("dashboard.shares")}</dt>
           <dd className="mt-1 font-medium">{holding.shares}</dd>
         </div>
         <div>
-          <dt className="text-muted">Avg price</dt>
+          <dt className="text-muted">{t("dashboard.avgPrice")}</dt>
           <dd className="mt-1 font-medium">
             {formatMoney(holding.avgPrice, holding.currency)}
           </dd>
         </div>
         <div>
-          <dt className="text-muted">Current</dt>
+          <dt className="text-muted">{t("dashboard.current")}</dt>
           <dd className="mt-1 font-medium">
             {holding.boughtInKrw &&
             holding.currentPrice !== null &&
@@ -537,7 +565,7 @@ function HoldingCard({
           </dd>
         </div>
         <div>
-          <dt className="text-muted">P/L</dt>
+          <dt className="text-muted">{t("dashboard.pl")}</dt>
           <dd className={`mt-1 font-medium ${color}`}>
             {holding.profit !== null
               ? formatMoney(holding.profit, holding.currency)
@@ -545,7 +573,7 @@ function HoldingCard({
           </dd>
         </div>
         <div>
-          <dt className="text-muted">P/L %</dt>
+          <dt className="text-muted">{t("dashboard.plPercent")}</dt>
           <dd className={`mt-1 font-medium ${color}`}>
             {holding.profitPercent !== null
               ? formatPercent(holding.profitPercent)
@@ -590,6 +618,7 @@ function MarketCard({
   emptyLabel?: string;
   highlight?: boolean;
 }) {
+  const { t } = useLanguage();
   const isEmpty = summary.holdingCount === 0;
   const color = summary.profit >= 0 ? "text-profit" : "text-loss";
 
@@ -607,8 +636,12 @@ function MarketCard({
       </p>
       <p className="mt-2 text-sm text-muted">
         {isEmpty
-          ? emptyLabel ?? "No holdings"
-          : `Value ${formatMoney(summary.value, summary.currency)} · Cost ${formatMoney(summary.cost, summary.currency)} · ${summary.holdingCount} holding${summary.holdingCount === 1 ? "" : "s"}`}
+          ? emptyLabel ?? t("dashboard.noHoldings")
+          : t("dashboard.marketSummary", {
+              value: formatMoney(summary.value, summary.currency),
+              cost: formatMoney(summary.cost, summary.currency),
+              count: summary.holdingCount,
+            })}
       </p>
     </div>
   );

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { Field, inputClass } from "@/components/auth-shell";
+import { LanguageToggle } from "@/components/language-toggle";
+import { useLanguage } from "@/components/language-provider";
 import { REMEMBER_MAX_AGE, SESSION_MAX_AGE } from "@/lib/auth-session";
 
 type Account = {
@@ -24,6 +26,7 @@ export function SettingsClient({
 }) {
   const router = useRouter();
   const { update } = useSession();
+  const { t } = useLanguage();
   const [account, setAccount] = useState<Account | null>(null);
   const [name, setName] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
@@ -44,13 +47,15 @@ export function SettingsClient({
         setName(data.name ?? "");
         setRememberMe(data.rememberMeDefault);
       } catch {
-        setError("Could not load account settings.");
+        setError(t("settings.loadError"));
       } finally {
         setLoading(false);
       }
     }
 
     void loadAccount();
+    // Load once on mount; t reflects the locale from the server cookie.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleSubmit(event: FormEvent) {
@@ -72,16 +77,16 @@ export function SettingsClient({
       const data = (await response.json()) as Account & { error?: string };
 
       if (!response.ok) {
-        setError(data.error ?? "Unable to save settings.");
+        setError(data.error ?? t("settings.saveError"));
         return;
       }
 
       setAccount(data);
       await update({ rememberMe });
-      setMessage("Settings saved. This device will stay signed in as configured.");
+      setMessage(t("settings.saved"));
       router.refresh();
     } catch {
-      setError("Unable to save settings.");
+      setError(t("settings.saveError"));
     } finally {
       setSaving(false);
     }
@@ -92,24 +97,27 @@ export function SettingsClient({
 
   return (
     <main className="mx-auto min-h-screen max-w-2xl px-6 py-10">
-      <div className="mb-8">
-        <Link
-          href="/dashboard"
-          className="text-sm text-muted transition hover:text-foreground"
-        >
-          ← Back to portfolio
-        </Link>
-        <h1 className="mt-4 text-3xl font-semibold tracking-tight">
-          Account settings
-        </h1>
-        <p className="mt-2 text-muted">
-          {userName || userEmail || "Your account"}
-        </p>
+      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <Link
+            href="/dashboard"
+            className="text-sm text-muted transition hover:text-foreground"
+          >
+            {t("nav.backToPortfolio")}
+          </Link>
+          <h1 className="mt-4 text-3xl font-semibold tracking-tight">
+            {t("settings.title")}
+          </h1>
+          <p className="mt-2 text-muted">
+            {userName || userEmail || t("settings.subtitle")}
+          </p>
+        </div>
+        <LanguageToggle />
       </div>
 
       {loading ? (
         <div className="rounded-2xl border border-card-border bg-card/60 p-10 text-center text-muted">
-          Loading settings...
+          {t("settings.loading")}
         </div>
       ) : error && !account ? (
         <div className="rounded-2xl border border-loss/40 bg-card/60 p-10 text-center text-loss">
@@ -120,7 +128,19 @@ export function SettingsClient({
           onSubmit={handleSubmit}
           className="space-y-6 rounded-2xl border border-card-border bg-card/60 p-6"
         >
-          <Field label="Email">
+          <div className="rounded-xl border border-card-border bg-background/40 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="font-semibold">{t("settings.language")}</p>
+                <p className="mt-1 text-sm text-muted">
+                  {t("settings.languageHint")}
+                </p>
+              </div>
+              <LanguageToggle />
+            </div>
+          </div>
+
+          <Field label={t("settings.email")}>
             <input
               value={account?.email ?? userEmail ?? ""}
               readOnly
@@ -128,11 +148,11 @@ export function SettingsClient({
             />
           </Field>
 
-          <Field label="Display name">
+          <Field label={t("settings.displayName")}>
             <input
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Optional"
+              placeholder={t("settings.optional")}
               autoComplete="name"
               className={inputClass}
             />
@@ -147,12 +167,13 @@ export function SettingsClient({
             />
             <span>
               <span className="block font-semibold text-foreground">
-                Remember this device
+                {t("settings.rememberDevice")}
               </span>
               <span className="mt-1 block text-sm text-muted">
-                Stay signed in for up to {rememberDays} days on this browser.
-                When off, your session expires after {sessionHours} hours of
-                inactivity.
+                {t("settings.rememberDeviceHint", {
+                  days: rememberDays,
+                  hours: sessionHours,
+                })}
               </span>
             </span>
           </label>
@@ -166,14 +187,14 @@ export function SettingsClient({
               disabled={saving}
               className="rounded-xl bg-accent px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-500 disabled:opacity-60"
             >
-              {saving ? "Saving..." : "Save settings"}
+              {saving ? t("settings.saving") : t("settings.save")}
             </button>
             <button
               type="button"
               onClick={() => signOut({ callbackUrl: "/" })}
               className="rounded-xl border border-card-border px-5 py-2.5 text-sm text-muted transition hover:border-loss hover:text-loss"
             >
-              Log out
+              {t("nav.logOut")}
             </button>
           </div>
         </form>

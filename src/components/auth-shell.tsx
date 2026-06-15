@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { LanguageToggle } from "@/components/language-toggle";
+import { useLanguage } from "@/components/language-provider";
 
 export const inputClass =
   "w-full rounded-xl border border-card-border bg-background px-4 py-3 outline-none transition focus:border-accent";
@@ -12,11 +16,16 @@ export function AuthShell({
   subtitle: string;
   children: React.ReactNode;
 }) {
+  const { t } = useLanguage();
+
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-12">
-      <Link href="/" className="mb-8 text-sm text-muted hover:text-foreground">
-        ← AStocks
-      </Link>
+      <div className="mb-8 flex items-center justify-between gap-4">
+        <Link href="/" className="text-sm text-muted hover:text-foreground">
+          ← {t("app.name")}
+        </Link>
+        <LanguageToggle />
+      </div>
       <div className="rounded-2xl border border-card-border bg-card/80 p-8 backdrop-blur">
         <h1 className="text-2xl font-semibold">{title}</h1>
         <p className="mt-2 text-sm text-muted">{subtitle}</p>

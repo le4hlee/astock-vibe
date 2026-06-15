@@ -5,11 +5,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { signIn } from "next-auth/react";
 import { AuthShell, Field, inputClass } from "@/components/auth-shell";
+import { useLanguage } from "@/components/language-provider";
 import { REMEMBER_MAX_AGE } from "@/lib/auth-session";
 
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(() => {
@@ -41,7 +43,7 @@ export default function LoginForm() {
     setLoading(false);
 
     if (result?.error) {
-      setError("Invalid email or password.");
+      setError(t("login.invalidCredentials"));
       return;
     }
 
@@ -50,17 +52,14 @@ export default function LoginForm() {
   }
 
   return (
-    <AuthShell
-      title="Welcome back"
-      subtitle="Log in to view your portfolio and live profit."
-    >
+    <AuthShell title={t("login.title")} subtitle={t("login.subtitle")}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {registered ? (
           <p className="rounded-xl border border-profit/30 bg-profit/10 px-4 py-3 text-sm text-profit">
-            Account created. You can log in now.
+            {t("login.registered")}
           </p>
         ) : null}
-        <Field label="Email">
+        <Field label={t("login.email")}>
           <input
             type="email"
             value={email}
@@ -70,7 +69,7 @@ export default function LoginForm() {
             className={inputClass}
           />
         </Field>
-        <Field label="Password">
+        <Field label={t("login.password")}>
           <input
             type="password"
             value={password}
@@ -88,9 +87,11 @@ export default function LoginForm() {
             className="mt-1 h-4 w-4 accent-accent"
           />
           <span>
-            <span className="block text-sm font-medium">Remember this device</span>
+            <span className="block text-sm font-medium">
+              {t("login.rememberDevice")}
+            </span>
             <span className="mt-1 block text-xs text-muted">
-              Stay signed in for up to {rememberDays} days on this browser.
+              {t("login.rememberDeviceHint", { days: rememberDays })}
             </span>
           </span>
         </label>
@@ -100,13 +101,13 @@ export default function LoginForm() {
           disabled={loading}
           className="w-full rounded-xl bg-accent py-3 font-medium text-white transition hover:bg-blue-500 disabled:opacity-60"
         >
-          {loading ? "Signing in..." : "Log in"}
+          {loading ? t("login.signingIn") : t("login.submit")}
         </button>
       </form>
       <p className="mt-6 text-center text-sm text-muted">
-        No account?{" "}
+        {t("login.noAccount")}{" "}
         <Link href="/register" className="text-accent hover:underline">
-          Sign up
+          {t("nav.signUp")}
         </Link>
       </p>
     </AuthShell>

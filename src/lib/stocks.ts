@@ -1,3 +1,5 @@
+import { YAHOO_HEADERS } from "./stocks-shared";
+
 export type QuoteResult = {
   symbol: string;
   price: number;
@@ -21,11 +23,6 @@ type YahooChartResponse = {
     }>;
     error?: { description?: string };
   };
-};
-
-const YAHOO_HEADERS = {
-  "User-Agent":
-    "Mozilla/5.0 (compatible; AStocks/1.0; +https://github.com/astocks)",
 };
 
 export function normalizeTicker(ticker: string, market: "US" | "KR"): string {
