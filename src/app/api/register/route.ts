@@ -1,6 +1,31 @@
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+
+function databaseErrorMessage(error: unknown): string | null {
+  if (error instanceof Prisma.PrismaClientInitializationError) {
+    return "Database is not connected. Set DATABASE_URL in your environment and run migrations.";
+  }
+
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === "P2021") {
+      return "Database tables are missing. Run: npx prisma migrate deploy";
+    }
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (message.includes("Can't reach database server")) {
+    return "Database is not reachable. Check DATABASE_URL and ensure the database is running.";
+  }
+
+  if (message.includes("placeholder") || message.includes("@HOST:")) {
+    return "DATABASE_URL still uses placeholder values. Add a real Postgres connection string.";
+  }
+
+  return null;
+}
 
 export async function POST(request: Request) {
   try {
@@ -46,9 +71,12 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ success: true });
-  } catch {
+  } catch (error) {
+    console.error("Registration failed:", error);
+
+    const dbMessage = databaseErrorMessage(error);
     return NextResponse.json(
-      { error: "Unable to create account." },
+      { error: dbMessage ?? "Unable to create account." },
       { status: 500 },
     );
   }
