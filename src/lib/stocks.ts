@@ -7,6 +7,7 @@ export type QuoteResult = {
 
 type YahooChartMeta = {
   regularMarketPrice?: number;
+  chartPreviousClose?: number;
   currency?: string;
   shortName?: string;
   longName?: string;
@@ -46,12 +47,24 @@ export function normalizeTicker(ticker: string, market: "US" | "KR"): string {
   return trimmed;
 }
 
+function extractPrice(meta: YahooChartMeta): number | null {
+  if (meta.regularMarketPrice && meta.regularMarketPrice > 0) {
+    return meta.regularMarketPrice;
+  }
+
+  if (meta.chartPreviousClose && meta.chartPreviousClose > 0) {
+    return meta.chartPreviousClose;
+  }
+
+  return null;
+}
+
 export async function fetchQuote(symbol: string): Promise<QuoteResult | null> {
   try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
     const response = await fetch(url, {
       headers: YAHOO_HEADERS,
-      next: { revalidate: 60 },
+      cache: "no-store",
     });
 
     if (!response.ok) {
@@ -60,14 +73,15 @@ export async function fetchQuote(symbol: string): Promise<QuoteResult | null> {
 
     const data = (await response.json()) as YahooChartResponse;
     const meta = data.chart?.result?.[0]?.meta;
+    const price = meta ? extractPrice(meta) : null;
 
-    if (!meta?.regularMarketPrice) {
+    if (!meta || price === null) {
       return null;
     }
 
     return {
       symbol: meta.symbol ?? symbol,
-      price: meta.regularMarketPrice,
+      price,
       currency: meta.currency ?? "USD",
       name: meta.longName ?? meta.shortName,
     };
@@ -79,6 +93,31 @@ export async function fetchQuote(symbol: string): Promise<QuoteResult | null> {
 export async function fetchUsdKrwRate(): Promise<number | null> {
   const quote = await fetchQuote("KRW=X");
   return quote?.price ?? null;
+}
+
+export function convertQuotePrice(
+  price: number,
+  from: string,
+  to: "USD" | "KRW",
+  usdKrwRate: number | null,
+): number | null {
+  if (from === to) {
+    return price;
+  }
+
+  if (!usdKrwRate) {
+    return null;
+  }
+
+  if (from === "USD" && to === "KRW") {
+    return price * usdKrwRate;
+  }
+
+  if (from === "KRW" && to === "USD") {
+    return price / usdKrwRate;
+  }
+
+  return price;
 }
 
 export function formatMoney(amount: number, currency: "USD" | "KRW"): string {

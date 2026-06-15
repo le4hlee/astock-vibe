@@ -1,5 +1,11 @@
 import type { Currency, Holding, Market } from "@prisma/client";
-import { fetchQuote, fetchUsdKrwRate, normalizeTicker } from "./stocks";
+import {
+  convertQuotePrice,
+  fetchQuote,
+  fetchUsdKrwRate,
+  normalizeTicker,
+  type QuoteResult,
+} from "./stocks";
 
 export type HoldingWithQuote = {
   id: string;
@@ -101,36 +107,51 @@ function summarizeMarket(
 
 function buildHoldingQuote(
   holding: Holding,
-  currentPriceUsd: number | null,
+  quote: QuoteResult | null,
   usdKrwRate: number | null,
 ): HoldingWithQuote {
   const costBasis = holding.shares * holding.avgPrice;
-  const isUsBoughtInKrw =
-    holding.market === "US" && holding.boughtInKrw && holding.currency === "KRW";
 
-  let currentPrice: number | null = null;
-  let currentPriceDisplay: number | null = null;
-  let currentValue: number | null = null;
-
-  if (currentPriceUsd !== null) {
-    if (isUsBoughtInKrw) {
-      currentPrice = currentPriceUsd;
-      currentPriceDisplay =
-        usdKrwRate !== null ? currentPriceUsd * usdKrwRate : null;
-      currentValue =
-        usdKrwRate !== null
-          ? holding.shares * currentPriceUsd * usdKrwRate
-          : null;
-    } else {
-      currentPrice = currentPriceUsd;
-      currentPriceDisplay = currentPriceUsd;
-      currentValue = holding.shares * currentPriceUsd;
-    }
+  if (!quote) {
+    return {
+      id: holding.id,
+      ticker: holding.ticker,
+      name: holding.name,
+      market: holding.market,
+      currency: holding.currency,
+      boughtInKrw: holding.boughtInKrw,
+      shares: holding.shares,
+      avgPrice: holding.avgPrice,
+      currentPrice: null,
+      currentPriceDisplay: null,
+      costBasis,
+      currentValue: null,
+      profit: null,
+      profitPercent: null,
+      quoteName: null,
+    };
   }
 
+  const priceInHoldingCurrency = convertQuotePrice(
+    quote.price,
+    quote.currency,
+    holding.currency,
+    usdKrwRate,
+  );
+
+  const currentValue =
+    priceInHoldingCurrency !== null
+      ? holding.shares * priceInHoldingCurrency
+      : null;
   const profit = currentValue !== null ? currentValue - costBasis : null;
   const profitPercent =
     profit !== null && costBasis > 0 ? (profit / costBasis) * 100 : null;
+
+  const quoteCurrency = quote.currency === "KRW" ? "KRW" : "USD";
+  const showDualPrice =
+    holding.boughtInKrw &&
+    quoteCurrency === "USD" &&
+    holding.currency === "KRW";
 
   return {
     id: holding.id,
@@ -141,13 +162,13 @@ function buildHoldingQuote(
     boughtInKrw: holding.boughtInKrw,
     shares: holding.shares,
     avgPrice: holding.avgPrice,
-    currentPrice,
-    currentPriceDisplay,
+    currentPrice: showDualPrice ? quote.price : priceInHoldingCurrency,
+    currentPriceDisplay: priceInHoldingCurrency,
     costBasis,
     currentValue,
     profit,
     profitPercent,
-    quoteName: null,
+    quoteName: quote.name ?? null,
   };
 }
 
@@ -161,16 +182,7 @@ export async function buildPortfolioSummary(
     holdings.map(async (holding) => {
       const symbol = normalizeTicker(holding.ticker, holding.market);
       const quote = await fetchQuote(symbol);
-      const result = buildHoldingQuote(
-        holding,
-        quote?.price ?? null,
-        usdKrwRate,
-      );
-
-      return {
-        ...result,
-        quoteName: quote?.name ?? null,
-      } satisfies HoldingWithQuote;
+      return buildHoldingQuote(holding, quote, usdKrwRate);
     }),
   );
 

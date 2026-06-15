@@ -57,7 +57,7 @@ export function DashboardClient({
 
       try {
         const response = await fetch(
-          `/api/portfolio?currency=${currency}`,
+          `/api/portfolio?currency=${currency}&_=${Date.now()}`,
           { cache: "no-store" },
         );
 
@@ -453,18 +453,20 @@ export function DashboardClient({
                             {formatMoney(holding.avgPrice, holding.currency)}
                           </td>
                           <td className="px-3 py-4">
-                            {holding.boughtInKrw && holding.currentPrice !== null ? (
+                            {holding.boughtInKrw &&
+                            holding.currentPrice !== null &&
+                            holding.currentPriceDisplay !== null ? (
                               <div>
-                                <div>{formatMoney(holding.currentPrice, "USD")}</div>
-                                {holding.currentPriceDisplay !== null ? (
-                                  <div className="text-xs text-muted">
-                                    ≈{" "}
-                                    {formatMoney(
-                                      holding.currentPriceDisplay,
-                                      "KRW",
-                                    )}
-                                  </div>
-                                ) : null}
+                                <div>
+                                  {formatMoney(holding.currentPrice, "USD")}
+                                </div>
+                                <div className="text-xs text-muted">
+                                  ≈{" "}
+                                  {formatMoney(
+                                    holding.currentPriceDisplay,
+                                    "KRW",
+                                  )}
+                                </div>
                               </div>
                             ) : holding.currentPriceDisplay !== null ? (
                               formatMoney(
