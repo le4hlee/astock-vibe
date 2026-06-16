@@ -26,10 +26,24 @@ export default function RegisterPage() {
       body: JSON.stringify({ name, email, password }),
     });
 
-    const data = (await response.json()) as { error?: string };
+    const data = (await response.json()) as {
+      error?: string;
+      retryAfterSeconds?: number;
+    };
 
     if (!response.ok) {
       setLoading(false);
+      if (response.status === 429) {
+        const minutes = data.retryAfterSeconds
+          ? Math.max(1, Math.ceil(data.retryAfterSeconds / 60))
+          : null;
+        setError(
+          minutes
+            ? t("register.rateLimited", { minutes })
+            : t("register.rateLimitedSoon"),
+        );
+        return;
+      }
       setError(data.error ?? t("register.error"));
       return;
     }

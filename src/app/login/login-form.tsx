@@ -42,7 +42,16 @@ export default function LoginForm() {
 
     setLoading(false);
 
+    if (result?.status === 429) {
+      setError(t("login.rateLimitedSoon"));
+      return;
+    }
+
     if (result?.error) {
+      if (result.error.toLowerCase().includes("too many")) {
+        setError(t("login.rateLimitedSoon"));
+        return;
+      }
       setError(t("login.invalidCredentials"));
       return;
     }

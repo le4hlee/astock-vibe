@@ -36,6 +36,8 @@ export const en = {
   "login.noAccount": "No account?",
   "login.registered": "Account created. You can log in now.",
   "login.invalidCredentials": "Invalid email or password.",
+  "login.rateLimited": "Too many login attempts. Please try again in {minutes} minutes.",
+  "login.rateLimitedSoon": "Too many login attempts. Please try again later.",
 
   "register.title": "Create your account",
   "register.subtitle": "Save your holdings and track profit across markets.",
@@ -46,6 +48,8 @@ export const en = {
   "register.submit": "Sign up",
   "register.hasAccount": "Already have an account?",
   "register.error": "Unable to create account.",
+  "register.rateLimited": "Too many sign-up attempts. Please try again in {minutes} minutes.",
+  "register.rateLimitedSoon": "Too many sign-up attempts. Please try again later.",
 
   "settings.title": "Account settings",
   "settings.subtitle": "Your account",

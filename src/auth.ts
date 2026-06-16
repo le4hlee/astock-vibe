@@ -3,6 +3,11 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { authConfig } from "@/auth.config";
 import { parseRememberMe } from "@/lib/auth-session";
+import {
+  clearRateLimit,
+  LOGIN_RATE_LIMITS,
+  recordRateLimitFailure,
+} from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -26,13 +31,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user) {
+          await recordRateLimitFailure(
+            `login:email:${email}`,
+            LOGIN_RATE_LIMITS.email.windowSeconds,
+          );
           return null;
         }
 
         const valid = await bcrypt.compare(password, user.passwordHash);
         if (!valid) {
+          await recordRateLimitFailure(
+            `login:email:${email}`,
+            LOGIN_RATE_LIMITS.email.windowSeconds,
+          );
           return null;
         }
+
+        await clearRateLimit(`login:email:${email}`);
 
         const rememberMe =
           rememberMeRaw === undefined || rememberMeRaw === ""

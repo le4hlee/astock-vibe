@@ -1,6 +1,13 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import {
+  enforceRateLimits,
+  getClientIp,
+  rateLimitResponse,
+  recordRateLimitFailure,
+  REGISTER_RATE_LIMITS,
+} from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 
 function databaseErrorMessage(error: unknown): string | null {
@@ -29,6 +36,24 @@ function databaseErrorMessage(error: unknown): string | null {
 
 export async function POST(request: Request) {
   try {
+    const ip = getClientIp(request);
+    const ipGuard = await enforceRateLimits([
+      {
+        key: `register:ip:${ip}`,
+        limit: REGISTER_RATE_LIMITS.ip.limit,
+        windowSeconds: REGISTER_RATE_LIMITS.ip.windowSeconds,
+      },
+    ]);
+
+    if (!ipGuard.allowed) {
+      return rateLimitResponse(ipGuard.retryAfterSeconds);
+    }
+
+    await recordRateLimitFailure(
+      `register:ip:${ip}`,
+      REGISTER_RATE_LIMITS.ip.windowSeconds,
+    );
+
     const body = (await request.json()) as {
       email?: string;
       password?: string;
@@ -45,6 +70,23 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+
+    const emailGuard = await enforceRateLimits([
+      {
+        key: `register:email:${email}`,
+        limit: REGISTER_RATE_LIMITS.email.limit,
+        windowSeconds: REGISTER_RATE_LIMITS.email.windowSeconds,
+      },
+    ]);
+
+    if (!emailGuard.allowed) {
+      return rateLimitResponse(emailGuard.retryAfterSeconds);
+    }
+
+    await recordRateLimitFailure(
+      `register:email:${email}`,
+      REGISTER_RATE_LIMITS.email.windowSeconds,
+    );
 
     if (password.length < 8) {
       return NextResponse.json(

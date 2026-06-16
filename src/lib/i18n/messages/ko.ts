@@ -38,6 +38,8 @@ export const ko: Record<keyof typeof en, string> = {
   "login.noAccount": "계정이 없으신가요?",
   "login.registered": "계정이 생성되었습니다. 지금 로그인할 수 있습니다.",
   "login.invalidCredentials": "이메일 또는 비밀번호가 올바르지 않습니다.",
+  "login.rateLimited": "로그인 시도 횟수가 너무 많습니다. {minutes}분 후 다시 시도해 주세요.",
+  "login.rateLimitedSoon": "로그인 시도 횟수가 너무 많습니다. 잠시 후 다시 시도해 주세요.",
 
   "register.title": "계정 만들기",
   "register.subtitle": "보유 종목을 저장하고 시장별 손익을 추적하세요.",
@@ -48,6 +50,8 @@ export const ko: Record<keyof typeof en, string> = {
   "register.submit": "회원가입",
   "register.hasAccount": "이미 계정이 있으신가요?",
   "register.error": "계정을 만들 수 없습니다.",
+  "register.rateLimited": "회원가입 시도 횟수가 너무 많습니다. {minutes}분 후 다시 시도해 주세요.",
+  "register.rateLimitedSoon": "회원가입 시도 횟수가 너무 많습니다. 잠시 후 다시 시도해 주세요.",
 
   "settings.title": "계정 설정",
   "settings.subtitle": "내 계정",
