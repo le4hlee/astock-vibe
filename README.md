@@ -1,4 +1,6 @@
 # AStocks
+
+Vibe coding project
 https://stock-ochre-mu.vercel.app/
 
 A personal stock portfolio tracker for **US and Korean** holdings. Save your tickers, share count, and average cost — then see total profit % updated with live market prices whenever you open the dashboard (and every 60 seconds while you stay on the page).
