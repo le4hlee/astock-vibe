@@ -1,4 +1,5 @@
 # AStocks
+https://stock-ochre-mu.vercel.app/
 
 A personal stock portfolio tracker for **US and Korean** holdings. Save your tickers, share count, and average cost — then see total profit % updated with live market prices whenever you open the dashboard (and every 60 seconds while you stay on the page).
 
@@ -46,25 +47,6 @@ Built with Next.js, deployed on Vercel.
 
    Open [http://localhost:3000](http://localhost:3000).
 
-## Deploy to Vercel
-
-1. Push this folder to GitHub.
-2. Import the project in [Vercel](https://vercel.com/new).
-3. Add environment variables from `.env.example`:
-   - `DATABASE_URL` — your production Postgres connection string
-   - `AUTH_SECRET` — generate with `openssl rand -base64 32`
-   - `AUTH_URL` — your production URL (e.g. `https://your-app.vercel.app`)
-4. Set the **Build Command** to use Prisma (already in `package.json`):
-
-   ```bash
-   prisma generate && next build
-   ```
-
-5. After first deploy, run migrations against production:
-
-   ```bash
-   npx prisma migrate deploy
-   ```
 
 ## Korean stock tickers
 
