@@ -133,4 +133,18 @@ export const ko: Record<keyof typeof en, string> = {
   "search.krPlaceholder": "삼성전자, Samsung, 005930 검색...",
   "search.searching": "검색 중...",
   "search.noMatches": "검색 결과 없음. 티커를 직접 입력할 수 있습니다.",
+
+  "dashboard.tabHoldings": "보유 종목",
+  "dashboard.tabAnalysis": "분석",
+
+  "analysis.loading": "분석 불러오는 중...",
+  "analysis.unavailable": "분석을 불러올 수 없습니다.",
+  "analysis.sectorBreakdown": "섹터 / 업종 비중",
+  "analysis.holdingsCount": "{count}종목",
+  "analysis.pl": "손익",
+  "analysis.topProfit": "손익 상위",
+  "analysis.topProfitPercent": "수익률 상위 (%)",
+  "analysis.worstProfit": "손실 상위",
+  "analysis.largestPositions": "비중 상위",
+  "analysis.noData": "아직 데이터가 부족합니다.",
 };

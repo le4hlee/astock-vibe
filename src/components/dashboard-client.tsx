@@ -12,8 +12,11 @@ import {
   StockSearchInput,
   type StockSearchInputHandle,
 } from "@/components/stock-search-input";
+import { PortfolioAnalysisPanel } from "@/components/portfolio-analysis-panel";
+import type { PortfolioAnalysis } from "@/lib/portfolio-analysis";
 
 type DisplayCurrency = "USD" | "KRW";
+type DashboardTab = "holdings" | "analysis";
 
 type HoldingFormState = {
   ticker: string;
@@ -53,6 +56,9 @@ export function DashboardClient({
   const [saving, setSaving] = useState(false);
   const searchInputRef = useRef<StockSearchInputHandle>(null);
   const { t } = useLanguage();
+  const [activeTab, setActiveTab] = useState<DashboardTab>("holdings");
+  const [analysis, setAnalysis] = useState<PortfolioAnalysis | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
 
   const currency =
     form.market === "KR" ? "KRW" : form.boughtInKrw ? "KRW" : "USD";
@@ -84,6 +90,28 @@ export function DashboardClient({
     },
     [t],
   );
+
+  const loadAnalysis = useCallback(async (currency = displayCurrency) => {
+    setAnalysisLoading(true);
+    try {
+      const response = await fetch(
+        `/api/portfolio/analysis?currency=${currency}&_=${Date.now()}`,
+        { cache: "no-store" },
+      );
+
+      if (!response.ok) {
+        setAnalysis(null);
+        return;
+      }
+
+      const data = (await response.json()) as PortfolioAnalysis;
+      setAnalysis(data);
+    } catch {
+      setAnalysis(null);
+    } finally {
+      setAnalysisLoading(false);
+    }
+  }, [displayCurrency]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -124,6 +152,9 @@ export function DashboardClient({
   async function handleCurrencyChange(currency: DisplayCurrency) {
     setDisplayCurrency(currency);
     await loadPortfolio(currency, true);
+    if (activeTab === "analysis") {
+      await loadAnalysis(currency);
+    }
   }
 
   async function handleSaveHolding(event: FormEvent) {
@@ -168,6 +199,9 @@ export function DashboardClient({
 
     resetForm();
     await loadPortfolio(displayCurrency, true);
+    if (activeTab === "analysis") {
+      await loadAnalysis();
+    }
   }
 
   async function handleDelete(id: string) {
@@ -180,6 +214,9 @@ export function DashboardClient({
       resetForm();
     }
     await loadPortfolio(displayCurrency, true);
+    if (activeTab === "analysis") {
+      await loadAnalysis();
+    }
   }
 
   const profitColor =
@@ -285,19 +322,46 @@ export function DashboardClient({
 
           <section className="rounded-2xl border border-card-border bg-card/60 p-6">
             <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-medium">{t("dashboard.holdings")}</h2>
-                <p className="text-sm text-muted">{t("dashboard.holdingsHint")}</p>
+              <div className="flex flex-wrap items-center gap-4">
+                <DashboardTabToggle
+                  value={activeTab}
+                  onChange={(tab) => {
+                    setActiveTab(tab);
+                    if (tab === "holdings") {
+                      resetForm();
+                    } else {
+                      void loadAnalysis();
+                    }
+                  }}
+                />
+                {activeTab === "holdings" ? (
+                  <p className="text-sm text-muted">{t("dashboard.holdingsHint")}</p>
+                ) : null}
               </div>
-              <button
-                type="button"
-                onClick={() => (showForm && !editingId ? resetForm() : startAdd())}
-                className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500"
-              >
-                {showForm && !editingId ? t("dashboard.cancel") : t("dashboard.addHolding")}
-              </button>
+              {activeTab === "holdings" ? (
+                <button
+                  type="button"
+                  onClick={() => (showForm && !editingId ? resetForm() : startAdd())}
+                  className="rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500"
+                >
+                  {showForm && !editingId ? t("dashboard.cancel") : t("dashboard.addHolding")}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void loadAnalysis()}
+                  disabled={analysisLoading}
+                  className="rounded-xl border border-card-border px-4 py-2 text-sm transition hover:border-accent disabled:opacity-60"
+                >
+                  {analysisLoading ? t("dashboard.refreshing") : t("dashboard.refresh")}
+                </button>
+              )}
             </div>
 
+            {activeTab === "analysis" ? (
+              <PortfolioAnalysisPanel analysis={analysis} loading={analysisLoading} />
+            ) : (
+              <>
             {showForm ? (
               <form
                 onSubmit={handleSaveHolding}
@@ -471,6 +535,8 @@ export function DashboardClient({
                 ))}
               </div>
             )}
+              </>
+            )}
           </section>
         </>
       )}
@@ -643,6 +709,40 @@ function MarketCard({
               count: summary.holdingCount,
             })}
       </p>
+    </div>
+  );
+}
+
+function DashboardTabToggle({
+  value,
+  onChange,
+}: {
+  value: DashboardTab;
+  onChange: (value: DashboardTab) => void;
+}) {
+  const { t } = useLanguage();
+
+  return (
+    <div className="flex rounded-lg border border-card-border p-1">
+      {(
+        [
+          ["holdings", t("dashboard.tabHoldings")],
+          ["analysis", t("dashboard.tabAnalysis")],
+        ] as const
+      ).map(([tab, label]) => (
+        <button
+          key={tab}
+          type="button"
+          onClick={() => onChange(tab)}
+          className={`rounded-md px-4 py-1.5 text-sm transition ${
+            value === tab
+              ? "bg-accent text-white"
+              : "text-muted hover:text-foreground"
+          }`}
+        >
+          {label}
+        </button>
+      ))}
     </div>
   );
 }

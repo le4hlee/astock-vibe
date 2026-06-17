@@ -132,4 +132,18 @@ export const en = {
   "search.krPlaceholder": "Search 삼성전자, Samsung, 005930...",
   "search.searching": "Searching...",
   "search.noMatches": "No matches. You can still enter a ticker manually.",
+
+  "dashboard.tabHoldings": "Holdings",
+  "dashboard.tabAnalysis": "Analysis",
+
+  "analysis.loading": "Loading analysis...",
+  "analysis.unavailable": "Could not load analysis.",
+  "analysis.sectorBreakdown": "Sector / industry breakdown",
+  "analysis.holdingsCount": "{count} holdings",
+  "analysis.pl": "P/L",
+  "analysis.topProfit": "Highest profit",
+  "analysis.topProfitPercent": "Highest profit (%)",
+  "analysis.worstProfit": "Biggest losses",
+  "analysis.largestPositions": "Largest positions",
+  "analysis.noData": "Not enough data yet.",
 } as const;

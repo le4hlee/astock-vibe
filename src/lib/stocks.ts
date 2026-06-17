@@ -38,7 +38,12 @@ export function normalizeTicker(ticker: string, market: "US" | "KR"): string {
 
   const digits = trimmed.replace(/\D/g, "");
   if (digits.length === 6) {
-    return `${digits}.KS`;
+    const withKs = `${digits}.KS`;
+    const withKq = `${digits}.KQ`;
+    if (trimmed.endsWith(".KQ") || trimmed.toUpperCase().endsWith(".KQ")) {
+      return withKq;
+    }
+    return withKs;
   }
 
   return trimmed;
